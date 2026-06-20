@@ -1,29 +1,12 @@
-data "aws_ami" "ubuntu_24_04" {
-  most_recent = true
-  owners      = ["099720109477"] # ID oficial da Canonical
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
-
 resource "tls_private_key" "pk" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
-
 resource "aws_key_pair" "kp" {
   key_name   = "${var.environment}-ssh-key"
   public_key = tls_private_key.pk.public_key_openssh
 }
 
-# Salva a chave privada no S3 criado pelo outro módulo para fins de backup
 resource "aws_s3_object" "private_key" {
   bucket  = var.bucket_name
   key     = "ssh-keys/${var.environment}-private-key.pem"
@@ -64,4 +47,14 @@ resource "aws_security_group" "sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+}
+
+resource "aws_s3_object" "private_key" {
+  bucket  = var.bucket_name
+  key     = "ssh-keys/${var.environment}-private-key.pem"
+  content = tls_private_key.pk.private_key_pem
+
+  depends_on = [
+    aws_instance.server
+  ]
 }

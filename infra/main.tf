@@ -31,7 +31,7 @@ module "s3" {
 module "ec2" {
   source      = "./modules/ec2"
   environment = terraform.workspace
-  bucket_name = var.bucket_name
+  bucket_name = module.s3.bucket_name
   ami_id      = "ami-0aa2bfca464a9be6b"
 
   servers = {
