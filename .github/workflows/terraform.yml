@@ -88,12 +88,14 @@ jobs:
           terraform apply -lock-timeout=60s "${{ inputs.environment }}.plan"
 
       - name: Install Ansible
+        if: steps.read-destroy-config.outputs.destroy != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y ansible python3-pip
           pip3 install --break-system-packages boto3 botocore
 
       - name: Generate Ansible Inventory from Terraform Output
+        if: steps.read-destroy-config.outputs.destroy != 'true'
         run: |
           cd infra
           WEB_IP=$(terraform output -json infra_ips | jq -r '.web')
@@ -103,11 +105,13 @@ jobs:
           echo -e "[web]\n${WEB_IP} ansible_user=ubuntu\n\n[db]\n${DB_IP} ansible_user=ubuntu\n\n[monitoring]\n${MON_IP} ansible_user=ubuntu" > ../ansible/inventory.ini
 
       - name: Download SSH Key from S3
+        if: steps.read-destroy-config.outputs.destroy != 'true'
         run: |
           aws s3 cp s3://prd-mba-iac-s3/ssh-keys/${{ inputs.environment }}-private-key.pem private_key.pem
           chmod 400 private_key.pem
 
       - name: Run Ansible Playbook
+        if: steps.read-destroy-config.outputs.destroy != 'true'
         run: |
           cd ansible
           SSM_PASSWORD=$(aws ssm get-parameter --name "/infra/${{ inputs.environment }}/users/andre/password" --with-decryption --query "Parameter.Value" --output text)
