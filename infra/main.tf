@@ -2,21 +2,6 @@ locals {
   sistema_usuarios = ["andre", "senior_devops"]
 }
 
-data "aws_ami" "ubuntu_24_04" {
-  most_recent = true
-  owners      = ["099720109477"] # ID oficial da Canonical
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
-
 resource "random_password" "user_passwords" {
   for_each         = toset(local.sistema_usuarios)
   length           = 16
@@ -47,7 +32,7 @@ module "ec2" {
   source      = "./modules/ec2"
   environment = terraform.workspace
   bucket_name = var.bucket_name
-  ami_id      = data.aws_ami.ubuntu_24_04.id
+  ami_id      = "ami-0aa2bfca464a9be6b"
 
   servers = {
     web = {
