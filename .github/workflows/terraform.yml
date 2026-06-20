@@ -90,8 +90,8 @@ jobs:
       - name: Install Ansible
         run: |
           sudo apt-get update
-          sudo apt-get install -y ansible
-          /opt/pipx/venvs/ansible-core/bin/pip install boto3 botocore
+          sudo apt-get install -y ansible python3-pip
+          pip3 install --break-system-packages boto3 botocore
 
       - name: Generate Ansible Inventory from Terraform Output
         run: |
