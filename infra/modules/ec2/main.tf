@@ -11,6 +11,10 @@ resource "aws_s3_object" "private_key" {
   bucket  = var.bucket_name
   key     = "ssh-keys/${var.environment}-private-key.pem"
   content = tls_private_key.pk.private_key_pem
+
+  depends_on = [
+    aws_instance.server
+  ]
 }
 
 resource "aws_instance" "server" {
@@ -47,14 +51,4 @@ resource "aws_security_group" "sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-}
-
-resource "aws_s3_object" "private_key" {
-  bucket  = var.bucket_name
-  key     = "ssh-keys/${var.environment}-private-key.pem"
-  content = tls_private_key.pk.private_key_pem
-
-  depends_on = [
-    aws_instance.server
-  ]
 }
