@@ -1,0 +1,55 @@
+---
+- name: Criar grupos do sistema
+  group:
+    name: "{{ item.groups }}"
+    state: present
+  loop:
+    - { name: 'andre', groups: 'sudo' }
+    - { name: 'senior_devops', groups: 'vars_users' }
+
+- name: Criar usuários da equipe
+  user:
+    name: "{{ item.name }}"
+    groups: "{{ item.groups }}"
+    append: yes
+    shell: /bin/bash
+  loop:
+    - { name: 'andre', groups: 'sudo' }
+    - { name: 'senior_devops', groups: 'vars_users' }
+
+- name: Definir senha dinâmica via AWS SSM para o usuário andre
+  user:
+    name: andre
+    password: "{{ lookup('aws_ssm', '/infra/prd/users/andre/password') | password_hash('sha512') }}"
+  failed_when: false
+  tags: [ 'auth' ]
+
+- name: Garantir que pacotes essenciais estejam instalados
+  apt:
+    name: [ 'curl', 'git', 'ufw', 'fail2ban', 'htop', 'libpam-pwquality' ]
+    state: present
+    update_cache: yes
+
+- name: Configurar política de senha padrão (Min 8 caracteres)
+  lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: '^#?minlen'
+    line: 'minlen = 8'
+
+- name: Desativar serviços inseguros ou não utilizados
+  service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  failed_when: false
+  loop: [ 'rsh-server', 'talkd', 'nis' ]
+
+- name: Configurar Firewall Básico (UFW) - Permitir SSH
+  ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+
+- name: Ativar Firewall UFW
+  ufw:
+    state: enabled

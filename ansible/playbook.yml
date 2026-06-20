@@ -1,0 +1,24 @@
+---
+- name: "Aplicar Configurações Base e Hardening"
+  hosts: all
+  become: true
+  roles:
+    - common
+
+- name: "Configurar Servidor Web Nginx"
+  hosts: web
+  become: true
+  roles:
+    - web
+
+- name: "Configurar Servidor de Banco de Dados"
+  hosts: db
+  become: true
+  roles:
+    - db
+
+- name: "Configurar Pilha de Monitoramento"
+  hosts: monitoring
+  become: true
+  roles:
+    - monitoring

@@ -1,0 +1,11 @@
+---
+- name: Instalar MariaDB Server
+  apt:
+    name: mariadb-server
+    state: latest
+
+- name: Permitir porta do banco no UFW local vindo da VPC
+  ufw:
+    rule: allow
+    port: '3306'
+    proto: tcp

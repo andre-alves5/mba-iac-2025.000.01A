@@ -1,0 +1,23 @@
+---
+- name: Adicionar dependências para repositórios externos
+  apt:
+    name: software-properties-common
+    state: present
+
+- name: Instalar pacotes de monitoramento disponíveis (Prometheus/Grafana)
+  apt:
+    name: [ 'prometheus', 'prometheus-node-exporter', 'grafana' ]
+    state: present
+
+- name: Garantir que o Grafana está rodando e habilitado no boot
+  service:
+    name: grafana-server
+    state: started
+    enabled: yes
+
+- name: Liberar Portas do Monitoramento no UFW local (Grafana e Prometheus)
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: [ '3000', '9090' ]

@@ -1,0 +1,112 @@
+name: "Terraform Workflow"
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      aws-assume-role-arn:
+        type: string
+        required: true
+      aws-region:
+        type: string
+        required: true
+      aws-statefile-s3-bucket:
+        type: string
+        required: true
+      aws-lock-dynamodb-table:
+        type: string
+        required: true
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.3.9
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ inputs.aws-assume-role-arn }}
+          role-session-name: GitHub_to_AWS_via_FederatedOIDC
+          aws-region: ${{ inputs.aws-region }}
+
+      - name: Read destroy configuration
+        id: read-destroy-config
+        working-directory: infra
+        run: |
+          ENVIRONMENT="${{ inputs.environment }}"
+          DESTROY=$(jq -r ".\"$ENVIRONMENT\"" ./destroy_config.json)
+          echo "destroy=$DESTROY" >> $GITHUB_OUTPUT
+
+      - name: Terraform Init
+        working-directory: infra
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ inputs.aws-statefile-s3-bucket }}" \
+            -backend-config="key=${{ github.event.repository.name }}" \
+            -backend-config="region=${{ inputs.aws-region }}" \
+            -backend-config="dynamodb_table=${{ inputs.aws-lock-dynamodb-table }}"
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: infra
+
+      - name: Terraform Destroy
+        if: steps.read-destroy-config.outputs.destroy == 'true'
+        id: terraform-destroy
+        working-directory: infra
+        run: |
+          terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }} &&
+          terraform destroy -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" -auto-approve
+
+      - name: Terraform Plan
+        if: steps.read-destroy-config.outputs.destroy != 'true'
+        id: terraform-plan
+        working-directory: infra
+        run: |
+          terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }} &&
+          terraform plan -lock-timeout=60s -var-file="./envs/${{ inputs.environment }}/terraform.tfvars" -out="${{ inputs.environment }}.plan"
+
+      - name: Terraform Apply
+        if: steps.read-destroy-config.outputs.destroy != 'true'
+        id: terraform-apply
+        working-directory: infra
+        run: |
+          terraform workspace select ${{ inputs.environment }} || terraform workspace new ${{ inputs.environment }} &&
+          terraform apply -lock-timeout=60s "${{ inputs.environment }}.plan"
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Generate Ansible Inventory from Terraform Output
+        run: |
+          cd infra
+          WEB_IP=$(terraform output -json infra_ips | jq -r '.web')
+          DB_IP=$(terraform output -json infra_ips | jq -r '.db')
+          MON_IP=$(terraform output -json infra_ips | jq -r '.monitoring')
+
+          echo -e "[web]\n${WEB_IP} ansible_user=ubuntu\n\n[db]\n${DB_IP} ansible_user=ubuntu\n\n[monitoring]\n${MON_IP} ansible_user=ubuntu" > ../ansible/inventory.ini
+
+      - name: Download SSH Key from S3
+        run: |
+          aws s3 cp s3://${{ inputs.aws-statefile-s3-bucket }}/ssh-keys/${{ inputs.environment }}-private-key.pem private_key.pem
+          chmod 400 private_key.pem
+
+      - name: Run Ansible Playbook
+        run: |
+          cd ansible
+          ansible-playbook -i inventory.ini playbook.yml --private-key ../private_key.pem -e "ansible_ssh_common_args='-o StrictHostKeyChecking=no'"
