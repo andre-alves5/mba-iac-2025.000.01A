@@ -2,15 +2,30 @@ locals {
   sistema_usuarios = ["andre", "senior_devops"]
 }
 
+data "aws_ami" "ubuntu_24_04" {
+  most_recent = true
+  owners      = ["099720109477"] # ID oficial da Canonical
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
 resource "random_password" "user_passwords" {
-  for_each         = toset(locals.sistema_usuarios)
+  for_each         = toset(local.sistema_usuarios)
   length           = 16
   special          = true
   override_special = "!@#$%^&*()-_=+"
 }
 
 resource "aws_ssm_parameter" "user_passwords_ssm" {
-  for_each = toset(locals.sistema_usuarios)
+  for_each = toset(local.sistema_usuarios)
   
   name        = "/infra/${terraform.workspace}/users/${each.key}/password"
   description = "Senha gerada automaticamente para o usuario ${each.key}"
@@ -23,7 +38,7 @@ resource "aws_ssm_parameter" "user_passwords_ssm" {
   }
 }
 
-module "s3-test" {
+module "s3" {
   source = "./modules/s3"
   bucket = var.bucket_name
 }
@@ -31,7 +46,7 @@ module "s3-test" {
 module "ec2" {
   source      = "./modules/ec2"
   environment = terraform.workspace
-  bucket_name = module.s3-test.bucket_id # Garante a ordem de dependência
+  bucket_name = var.bucket_name
   ami_id      = data.aws_ami.ubuntu_24_04.id
 
   servers = {
@@ -49,7 +64,6 @@ module "ec2" {
     }
   }
 }
-
 resource "local_file" "ansible_inventory" {
   filename = "${path.module}/../ansible/inventory.ini"
   content  = templatefile("${path.module}/inventory.tpl", {
@@ -58,7 +72,6 @@ resource "local_file" "ansible_inventory" {
     monitoring_ip = module.ec2.instance_ips["monitoring"]
   })
 }
-
 output "infra_ips" {
   value = module.ec2.instance_ips
 }
