@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  terraform:
+  Deployment:
     uses: ./.github/workflows/terraform.yml
     with:
       environment: prd
