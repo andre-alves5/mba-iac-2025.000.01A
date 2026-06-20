@@ -110,4 +110,8 @@ jobs:
       - name: Run Ansible Playbook
         run: |
           cd ansible
-          ansible-playbook -i inventory.ini playbook.yml --private-key ../private_key.pem -e "ansible_ssh_common_args='-o StrictHostKeyChecking=no'"
+          SSM_PASSWORD=$(aws ssm get-parameter --name "/infra/${{ inputs.environment }}/users/andre/password" --with-decryption --query "Parameter.Value" --output text)
+          ansible-playbook -i inventory.ini playbook.yml \
+            --private-key ../private_key.pem \
+            -e "ansible_ssh_common_args='-o StrictHostKeyChecking=no'" \
+            -e "user_andre_password=$SSM_PASSWORD"
