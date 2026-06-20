@@ -1,8 +1,19 @@
 ---
 - name: Adicionar dependências para repositórios externos
   apt:
-    name: software-properties-common
+    name: [ 'software-properties-common', 'apt-transport-https', 'wget' ]
     state: present
+
+- name: Adicionar chave GPG do Grafana
+  apt_key:
+    url: https://apt.grafana.com/gpg.key
+    state: present
+
+- name: Adicionar repositório estável do Grafana
+  apt_repository:
+    repo: deb https://apt.grafana.com stable main
+    state: present
+    update_cache: yes
 
 - name: Instalar pacotes de monitoramento disponíveis (Prometheus/Grafana)
   apt:
