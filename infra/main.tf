@@ -1,5 +1,5 @@
 locals {
-  sistema_usuarios = ["andre", "junior_devops"]
+  sistema_usuarios = ["andre", "senior_devops"]
 }
 
 resource "random_password" "user_passwords" {
@@ -21,6 +21,11 @@ resource "aws_ssm_parameter" "user_passwords_ssm" {
     Environment = terraform.workspace
     ManagedBy   = "Terraform"
   }
+}
+
+module "s3-test" {
+  source = "./modules/s3"
+  bucket = var.bucket_name
 }
 
 module "ec2" {
