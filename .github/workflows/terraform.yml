@@ -103,7 +103,7 @@ jobs:
 
       - name: Download SSH Key from S3
         run: |
-          aws s3 cp s3://${{ inputs.aws-statefile-s3-bucket }}/ssh-keys/${{ inputs.environment }}-private-key.pem private_key.pem
+          ws s3 cp s3://prd-mba-iac-s3/ssh-keys/${{ inputs.environment }}-private-key.pem private_key.pem
           chmod 400 private_key.pem
 
       - name: Run Ansible Playbook
