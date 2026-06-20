@@ -17,11 +17,10 @@
     - { name: 'andre', groups: 'sudo' }
     - { name: 'senior_devops', groups: 'vars_users' }
 
-- name: Definir senha dinâmica via AWS SSM para o usuário andre
+- name: Definir senha dinâmica para o usuário andre
   user:
     name: andre
-    password: "{{ lookup('aws_ssm', '/infra/prd/users/andre/password') | password_hash('sha512') }}"
-  failed_when: false
+    password: "{{ user_andre_password | password_hash('sha512') }}"
   tags: [ 'auth' ]
 
 - name: Garantir que pacotes essenciais estejam instalados
